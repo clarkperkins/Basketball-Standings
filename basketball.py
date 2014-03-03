@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 
-import requests, json, sys
 from datetime import date, timedelta
-from BasketballParser import BasketballParser
 from standings import order, record
+import espn
 
 mens_womens = raw_input("Would you like standings for mens or womens basketball? ")
 
@@ -13,21 +12,10 @@ if mens_womens != "mens" and mens_womens != "womens":
 
 conf = raw_input("Enter your conference code now if you know it, otherwise press enter: ")
 
-ESPN_URL = "http://api.espn.com/v1/sports/basketball/"+mens_womens+"-college-basketball"
-API_KEY = "?apikey=ndzryyg4bp4zvjd43h7azdcp"
 
+conferences = espn.get_conference_list(mens_womens)
 
-r = requests.get(ESPN_URL+API_KEY)
-
-res = r.json()
-
-conferences = {}
-max_len = 0
-
-for i in res['sports'][0]['leagues'][0]['groups'][0]['groups']:
-    conferences[i['abbreviation']] = {'name':i['name'], 'id':i['groupId']}
-    if len(i['name']) > max_len:
-        max_len = len(i['name'])
+max_len = conferences['max_len']
 
 if conf == "":
     print
@@ -44,52 +32,20 @@ if conf not in conferences.keys():
     print "\nYou entered an invalid conference.  Exiting."
     exit(1)
 
+
 id = conferences[conf]['id']
 
 
-print "Fetching data",
-sys.stdout.flush()
+games_list = espn.get_games_list(mens_womens, conf, id, date(2013,11,8), date.today()+timedelta(10))
 
-r = requests.get(ESPN_URL+"/teams"+API_KEY+"&groups="+str(id))
-
-res = r.json()
-
-errata = {
-    'Mississippi St': 'Mississippi State',
-    'NC State': 'North Carolina State'
-}
-
-teams_in_conf = {}
-for i in res['sports'][0]['leagues'][0]['teams']:
-    teams_in_conf[i['id']] = i['nickname']
-
-
-stats = []
-future_games = []
-
-start_date = date(2013,11,8)
-#start_date = date.today() - timedelta(1)
-
-while start_date < date.today() + timedelta(10):
-    print ".",
-    sys.stdout.flush()
-    SCHEDULE_URL = "http://espn.go.com/"+mens_womens+"-college-basketball/conferences/schedule/_/id/"+str(id)+"/date/"+start_date.strftime("%Y%m%d")+"/"+conf+"-conference"
-
-    r = requests.get(SCHEDULE_URL)
-
-    parser = BasketballParser(teams_in_conf)
-    parser.feed(r.text.replace("A&M","AM"))
-
-    stats.extend(parser.results)
-    future_games.extend(parser.future_games)
-
-    start_date += timedelta(6)
+past_games = games_list['past_games']
+future_games = games_list['future_games']
 
 print
 
 team_records = {}
 
-for game in stats:
+for game in past_games:
     if not team_records.has_key(game[0]):
         team_records[game[0]] = {'wins':[], 'losses':[]}
     if not team_records.has_key(game[1]):
@@ -118,6 +74,8 @@ for team in this_order:
 print
 
 possible_standings = {}
+
+stats = past_games
 
 def compute_future_statistics(game_no):
     if game_no is len(future_games):
