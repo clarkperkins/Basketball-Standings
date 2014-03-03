@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from datetime import date, timedelta
-from standings import order, record, get_win_loss_matrix
+from standings import order, record, get_win_loss_matrix, get_future_statistics
 import espn
 
 mens_womens = raw_input("Would you like standings for mens or womens basketball? ")
@@ -65,36 +65,7 @@ for team in this_order:
 
 print
 
-possible_standings = {}
-
-stats = past_games
-
-def compute_future_statistics(game_no):
-    if game_no is len(future_games):
-        team_records = {}
-        for game in stats:
-            if not team_records.has_key(game[0]):
-                team_records[game[0]] = {'wins':[], 'losses':[]}
-            if not team_records.has_key(game[1]):
-                team_records[game[1]] = {'wins':[], 'losses':[]}
-            team_records[game[0]]['wins'].append(game[1])
-            team_records[game[1]]['losses'].append(game[0])
-
-        this_order = order(team_records, False)
-
-        for i in range(0, len(this_order)):
-            if not possible_standings.has_key(this_order[i]):
-                possible_standings[this_order[i]] = [0] * len(this_order)
-            possible_standings[this_order[i]][i] += 1
-    else:
-        stats.append(future_games[game_no])
-        compute_future_statistics(game_no + 1)
-        stats.pop()
-        stats.append([future_games[game_no][1], future_games[game_no][0]])
-        compute_future_statistics(game_no + 1)
-        stats.pop()
-
-compute_future_statistics(0)
+possible_standings = get_future_statistics(past_games, future_games)
 
 possible_percents = {}
 

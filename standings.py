@@ -98,4 +98,40 @@ def break_ties(team_recs, the_order, lo, hi, print_ties):
 def record(team_records, team):
     return str(len(team_records[team]['wins']))+"-"+str(len(team_records[team]['losses']))
 
+stats = None
+possible_standings = None
+future_games = None
+
+def compute_future_statistics(game_no):
+    if game_no is len(future_games):
+        team_records = get_win_loss_matrix(stats)
+        
+        this_order = order(team_records, False)
+        
+        for i in range(0, len(this_order)):
+            if not possible_standings.has_key(this_order[i]):
+                possible_standings[this_order[i]] = [0] * len(this_order)
+            possible_standings[this_order[i]][i] += 1
+    else:
+        stats.append(future_games[game_no])
+        compute_future_statistics(game_no + 1)
+        stats.pop()
+        stats.append([future_games[game_no][1], future_games[game_no][0]])
+        compute_future_statistics(game_no + 1)
+        stats.pop()
+
+def get_future_statistics(past_games, fut_games):
+    global stats
+    stats = past_games
+    global future_games
+    future_games = fut_games
+    global possible_standings
+    possible_standings = {}
+    
+    compute_future_statistics(0)
+    
+    return possible_standings
+
+
+
 
