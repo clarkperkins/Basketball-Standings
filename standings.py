@@ -1,5 +1,18 @@
 # Utility functions for calculating the rankings of basketball teams
 
+def get_win_loss_matrix(games):
+    team_records = {}
+
+    for game in games:
+        if not team_records.has_key(game[0]):
+            team_records[game[0]] = {'wins':[], 'losses':[]}
+        if not team_records.has_key(game[1]):
+            team_records[game[1]] = {'wins':[], 'losses':[]}
+        team_records[game[0]]['wins'].append(game[1])
+        team_records[game[1]]['losses'].append(game[0])
+
+    return team_records
+
 
 def order(team_recs, print_ties):
     the_order = team_recs.keys()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from datetime import date, timedelta
-from standings import order, record
+from standings import order, record, get_win_loss_matrix
 import espn
 
 mens_womens = raw_input("Would you like standings for mens or womens basketball? ")
@@ -43,15 +43,7 @@ future_games = games_list['future_games']
 
 print
 
-team_records = {}
-
-for game in past_games:
-    if not team_records.has_key(game[0]):
-        team_records[game[0]] = {'wins':[], 'losses':[]}
-    if not team_records.has_key(game[1]):
-        team_records[game[1]] = {'wins':[], 'losses':[]}
-    team_records[game[0]]['wins'].append(game[1])
-    team_records[game[1]]['losses'].append(game[0])
+team_records = get_win_loss_matrix(past_games)
 
 max_len = 0
 for i in team_records.keys():
