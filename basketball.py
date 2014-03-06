@@ -17,6 +17,8 @@ conferences = espn.get_conference_list(mens_womens)
 
 max_len = conferences['max_len']
 
+del conferences['max_len']
+
 if conf == "":
     print
     for i in conferences.keys():
@@ -76,6 +78,9 @@ for team in possible_standings.keys():
     for num_games in possible_standings[team]:
         possible_percents[team].append(float(num_games)/num_possibilities*100)
 
+print
+print "There are",len(future_games),"games left."
+print
 print "Team:".ljust(max_len + 1),
 for i in range(1, len(possible_percents.keys())+1):
     print repr(i).rjust(4)+" ",
