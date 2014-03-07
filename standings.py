@@ -94,6 +94,32 @@ def break_ties(team_recs, the_order, lo, hi, print_ties):
                     the_order[index] = team
                     index += 1
                 break_ties(team_recs, the_order, orig_index, index-1, print_ties)
+            else:
+                should_break = False
+                for idx in range(0, len(the_order)):
+                    if idx not in range(index, index+len(percents[pct])+1):
+                        sub_pcts = {}
+                        for team in percents[pct]:
+                            sub = check_record(team_recs, team, [the_order[idx]], print_ties)
+                            if not sub_pcts.has_key(float(sub[0])/(sub[0]+sub[1])):
+                                sub_pcts[float(sub[0])/(sub[0]+sub[1])] = []
+                            sub_pcts[float(sub[0])/(sub[0]+sub[1])].append(team)
+#                        print sub_pcts
+                        for sub_pct in sorted(sub_pcts.keys(), reverse=True):
+                            if len(sub_pcts[sub_pct]) is 1:
+                                the_order[index] = sub_pcts[sub_pct][0]
+                                index += 1
+                                should_break = True
+                            elif len(sub_pcts[sub_pct]) < len(percents[pct]):
+                                orig_index = index
+                                for team in sub_pcts[sub_pct]:
+                                    the_order[index] = team
+                                    index += 1
+                                break_ties(team_recs, the_order, orig_index, index-1, print_ties)
+                                should_break = True
+
+                        if should_break:
+                            break
 
 def record(team_records, team):
     return str(len(team_records[team]['wins']))+"-"+str(len(team_records[team]['losses']))

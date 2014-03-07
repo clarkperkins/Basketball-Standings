@@ -27,7 +27,7 @@ def get_conference_list(mens_womens):
 
 
 
-def get_games_list(mens_womens, conf, id, start_date, end_date):
+def get_games_list(mens_womens, conf, id, start_date, tourney_date):
     ESPN_API_URL = "http://api.espn.com/v1/sports/basketball/"+mens_womens+"-college-basketball"
 
     print "Fetching data",
@@ -45,10 +45,12 @@ def get_games_list(mens_womens, conf, id, start_date, end_date):
     stats = []
     future_games = []
 
+    end_date = tourney_date-timedelta(6)
+
     while start_date < end_date:
         print ".",
         sys.stdout.flush()
-        SCHEDULE_URL = "http://espn.go.com/"+mens_womens+"-college-basketball/conferences/schedule/_/id/"+str(id)+"/date/"+start_date.strftime("%Y%m%d")+"/"+conf+"-conference"
+        SCHEDULE_URL = "http://espn.go.com/"+mens_womens+"-college-basketball/conferences/schedule/_/id/"+str(id)+"/date/"+end_date.strftime("%Y%m%d")+"/"+conf+"-conference"
         
         r = requests.get(SCHEDULE_URL)
         
@@ -58,7 +60,7 @@ def get_games_list(mens_womens, conf, id, start_date, end_date):
         stats.extend(parser.results)
         future_games.extend(parser.future_games)
         
-        start_date += timedelta(6)
+        end_date -= timedelta(6)
 
     return {'past_games':stats, 'future_games':future_games}
 
