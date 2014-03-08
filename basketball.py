@@ -60,6 +60,7 @@ games_list = espn.get_games_list(mens_womens, conf, id, date(year-1,11,1), date(
 
 past_games = games_list['past_games']
 future_games = games_list['future_games']
+games_in_progress = games_list['games_in_progress']
 #future_games = []
 #
 #past_games.append(["South Carolina","Mississippi State"])
@@ -95,13 +96,18 @@ for team in this_order:
     num += 1
 
 print
+print
+
+print "There are", len(games_in_progress), "games in progress."
+for game in games_in_progress:
+    print game
 
 print
-print "There are",len(future_games),"games left."
+print "There are", len(future_games), "games left."
 
 if len(future_games) > 0 and len(future_games) < 20:
     for game in future_games:
-        print game[0], "at", game[1]
+        print game[0], "@", game[1]
     
     possible_standings = get_future_statistics(past_games, future_games)
 

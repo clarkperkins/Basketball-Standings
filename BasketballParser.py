@@ -14,6 +14,7 @@ class BasketballParser(HTMLParser):
     in_future_game_tag = False
     get_future_team = False
     future_game = []
+    games_in_progress = []
     
     def __init__(self, teams):
         HTMLParser.__init__(self)
@@ -27,6 +28,7 @@ class BasketballParser(HTMLParser):
         self.in_future_game_tag = False
         self.get_future_team = False
         self.future_game = []
+        self.games_in_progress = []
     
     
     def handle_starttag(self, tag, attrs):
@@ -79,8 +81,12 @@ class BasketballParser(HTMLParser):
                 self.get_future_game = True
             self.get_team = False
         elif self.get_future_team:
-            self.future_game.append(data.replace("AM", "A&M"))
-            self.get_future_team = False
-            if len(self.future_game) is 2:
-                self.future_games.append(self.future_game)
-                self.future_game = []
+            if ',' in data:
+                self.games_in_progress.append(data.replace("AM","A&M"))
+                self.get_future_team = False
+            else:
+                self.future_game.append(data.replace("AM", "A&M"))
+                self.get_future_team = False
+                if len(self.future_game) is 2:
+                    self.future_games.append(self.future_game)
+                    self.future_game = []

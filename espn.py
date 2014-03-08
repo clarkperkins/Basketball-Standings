@@ -44,6 +44,7 @@ def get_games_list(mens_womens, conf, id, start_date, tourney_date):
 
     stats = []
     future_games = []
+    games_in_progress = []
 
     end_date = tourney_date-timedelta(6)
 
@@ -59,8 +60,9 @@ def get_games_list(mens_womens, conf, id, start_date, tourney_date):
         
         stats.extend(parser.results)
         future_games.extend(parser.future_games)
+        games_in_progress.extend(parser.games_in_progress)
         
         end_date -= timedelta(6)
 
-    return {'past_games':stats, 'future_games':future_games}
+    return {'past_games':stats, 'future_games':future_games, 'games_in_progress':games_in_progress}
 
