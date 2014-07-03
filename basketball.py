@@ -2,7 +2,7 @@
 
 from datetime import date, timedelta
 from standings import order, record, get_win_loss_matrix, get_future_statistics
-import espn
+import espn, json
 
 mens_womens = raw_input("Would you like standings for mens or womens basketball? ")
 
@@ -61,26 +61,37 @@ games_list = espn.get_games_list(mens_womens, conf, id, date(year-1,11,1), date(
 past_games = games_list['past_games']
 future_games = games_list['future_games']
 games_in_progress = games_list['games_in_progress']
-#future_games = []
-#
-#past_games.append(["South Carolina","Mississippi State"])
-#past_games.append(["Ole Miss","Vanderbilt"])
-#
-#past_games.append(["Florida","Kentucky"])
-#past_games.append(["Auburn","Texas A&M"])
-#past_games.append(["Tennessee","Missouri"])
-#past_games.append(["Arkansas","Alabama"])
-#past_games.append(["Georgia","LSU"])
-
 
 print
 
 team_records = get_win_loss_matrix(past_games)
 
+
 max_len = 0
+num_games = 0
 for i in team_records.keys():
     if len(i) > max_len:
         max_len = len(i)
+    num_games += len(team_records[i]['wins'])
+    num_games += len(team_records[i]['losses'])
+
+avg_num_games = int(float(num_games) / len(team_records.keys()))
+
+
+for team in team_records.keys():
+    if team_records.has_key(team):
+        num_games_team = len(team_records[team]['wins']) + len(team_records[team]['losses'])
+        if avg_num_games - num_games_team > 5:
+            del team_records[team]
+            for i in team_records.keys():
+                for j in range(0, len(team_records[i]['wins'])):
+                    if j < len(team_records[i]['wins']):
+                        if team_records[i]['wins'][j] == team:
+                            del team_records[i]['wins'][j]
+                for j in range(0, len(team_records[i]['losses'])):
+                    if j < len(team_records[i]['losses']):
+                        if team_records[i]['losses'][j] == team:
+                            del team_records[i]['losses'][j]
 
 print
 

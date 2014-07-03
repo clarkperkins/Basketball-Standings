@@ -55,6 +55,9 @@ def get_games_list(mens_womens, conf, id, start_date, tourney_date):
         
         r = requests.get(SCHEDULE_URL)
         
+        if r.status_code is not 200:
+            print "request for", str(end_date), "failed."
+        
         parser = BasketballParser(teams_in_conf)
         parser.feed(r.text.replace("A&M","AM"))
         
