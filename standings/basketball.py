@@ -1,7 +1,7 @@
 
 from datetime import date
 
-from standings.standings import order, record, get_win_loss_matrix, get_future_statistics
+from standings.util import order, record, get_win_loss_matrix, get_future_statistics
 from standings import espn
 
 
