@@ -1,13 +1,14 @@
 # Utility functions for calculating the rankings of basketball teams
 
+
 def get_win_loss_matrix(games):
     team_records = {}
 
     for game in games:
-        if not team_records.has_key(game[0]):
-            team_records[game[0]] = {'wins':[], 'losses':[]}
-        if not team_records.has_key(game[1]):
-            team_records[game[1]] = {'wins':[], 'losses':[]}
+        if game[0] not in team_records:
+            team_records[game[0]] = {'wins': [], 'losses': []}
+        if game[1] not in team_records:
+            team_records[game[1]] = {'wins': [], 'losses': []}
         team_records[game[0]]['wins'].append(game[1])
         team_records[game[1]]['losses'].append(game[0])
 
@@ -18,12 +19,15 @@ def order(team_recs, print_ties):
     the_order = team_recs.keys()
     percents = {}
     for team in the_order:
-        percent = float(len(team_recs[team]['wins']))/(len(team_recs[team]['wins'])+len(team_recs[team]['losses']))
-        if not percents.has_key(percent):
+        wins = len(team_recs[team]['wins'])
+        games = wins + len(team_recs[team]['losses'])
+        percent = float(wins) / games
+
+        if percent not in percents:
             percents[percent] = []
         percents[percent].append(team)
     index = 0
-    for i in sorted(percents.keys(),reverse=True):
+    for i in sorted(percents.keys(), reverse=True):
         if len(percents[i]) is 1:
             the_order[index] = percents[i][0]
             index += 1
@@ -51,6 +55,7 @@ def check_record(team_recs, team, other_teams, print_ties):
             print i+" ",
         print
     return [wins, losses]
+
 
 def break_ties(team_recs, the_order, lo, hi, print_ties):
     if hi - lo is 1:
@@ -101,7 +106,7 @@ def break_ties(team_recs, the_order, lo, hi, print_ties):
                         sub_pcts = {}
                         for team in percents[pct]:
                             sub = check_record(team_recs, team, [the_order[idx]], print_ties)
-                            if not sub_pcts.has_key(float(sub[0])/(sub[0]+sub[1])):
+                            if float(sub[0])/(sub[0]+sub[1]) not in sub_pcts:
                                 sub_pcts[float(sub[0])/(sub[0]+sub[1])] = []
                             sub_pcts[float(sub[0])/(sub[0]+sub[1])].append(team)
 #                        print sub_pcts
@@ -121,12 +126,14 @@ def break_ties(team_recs, the_order, lo, hi, print_ties):
                         if should_break:
                             break
 
+
 def record(team_records, team):
     return str(len(team_records[team]['wins']))+"-"+str(len(team_records[team]['losses']))
 
 stats = None
 possible_standings = None
 future_games = None
+
 
 def compute_future_statistics(game_no):
     if game_no is len(future_games):
@@ -135,7 +142,7 @@ def compute_future_statistics(game_no):
         this_order = order(team_records, False)
         
         for i in range(0, len(this_order)):
-            if not possible_standings.has_key(this_order[i]):
+            if this_order[i] not in possible_standings:
                 possible_standings[this_order[i]] = [0] * len(this_order)
             possible_standings[this_order[i]][i] += 1
     else:
@@ -145,6 +152,7 @@ def compute_future_statistics(game_no):
         stats.append([future_games[game_no][1], future_games[game_no][0]])
         compute_future_statistics(game_no + 1)
         stats.pop()
+
 
 def get_future_statistics(past_games, fut_games):
     global stats
@@ -157,7 +165,3 @@ def get_future_statistics(past_games, fut_games):
     compute_future_statistics(0)
     
     return possible_standings
-
-
-
-

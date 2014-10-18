@@ -2,6 +2,7 @@
 
 from HTMLParser import HTMLParser
 
+
 class BasketballParser(HTMLParser):
     teams_in_conf = {}
     table_number = 0
@@ -29,8 +30,7 @@ class BasketballParser(HTMLParser):
         self.get_future_team = False
         self.future_game = []
         self.games_in_progress = []
-    
-    
+
     def handle_starttag(self, tag, attrs):
         if tag == "table" and self.table_number is 0:
             self.table_number += 1
@@ -72,7 +72,7 @@ class BasketballParser(HTMLParser):
                     if "#" in split2[0]:
                         del split2[0]
                     split2.pop()
-                    new_data.append(" ".join(split2).replace("AM","A&M"))
+                    new_data.append(" ".join(split2).replace("AM", "A&M"))
                 #                print new_data
                 self.results.append(new_data)
             #                print data
@@ -82,7 +82,7 @@ class BasketballParser(HTMLParser):
             self.get_team = False
         elif self.get_future_team:
             if ',' in data:
-                self.games_in_progress.append(data.replace("AM","A&M"))
+                self.games_in_progress.append(data.replace("AM", "A&M"))
                 self.get_future_team = False
             else:
                 self.future_game.append(data.replace("AM", "A&M"))

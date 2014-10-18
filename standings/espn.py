@@ -1,8 +1,12 @@
 # Functions for getting data from ESPN
 
-import requests, json, sys
-from BasketballParser import BasketballParser
-from datetime import date, timedelta
+import sys
+from datetime import timedelta
+
+import requests
+
+from standings import BasketballParser
+
 
 API_KEY = "?apikey=ndzryyg4bp4zvjd43h7azdcp"
 

@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
-from datetime import date, timedelta
-from standings import order, record, get_win_loss_matrix, get_future_statistics
-import espn, json
+from datetime import date
+
+from standings.standings import order, record, get_win_loss_matrix, get_future_statistics
+from standings import espn
+
 
 mens_womens = raw_input("Would you like standings for mens or womens basketball? ")
 
@@ -53,10 +55,14 @@ if tourney_day > 31:
     print "You entered an invalid day. Exiting."
     exit(1)
 
-id = conferences[conf]['id']
+conference_id = conferences[conf]['id']
 
 
-games_list = espn.get_games_list(mens_womens, conf, id, date(year-1,11,1), date(year,tourney_month,tourney_day))
+games_list = espn.get_games_list(mens_womens,
+                                 conf,
+                                 conference_id,
+                                 date(year-1, 11, 1),
+                                 date(year, tourney_month, tourney_day))
 
 past_games = games_list['past_games']
 future_games = games_list['future_games']
@@ -79,7 +85,7 @@ avg_num_games = int(float(num_games) / len(team_records.keys()))
 
 
 for team in team_records.keys():
-    if team_records.has_key(team):
+    if team in team_records:
         num_games_team = len(team_records[team]['wins']) + len(team_records[team]['losses'])
         if avg_num_games - num_games_team > 5:
             del team_records[team]
@@ -116,7 +122,7 @@ for game in games_in_progress:
 print
 print "There are", len(future_games), "games left."
 
-if len(future_games) > 0 and len(future_games) < 20:
+if 0 < len(future_games) < 20:
     for game in future_games:
         print game[0], "@", game[1]
     
