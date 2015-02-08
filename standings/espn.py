@@ -8,6 +8,97 @@ import requests
 from standings.parser import BasketballParser
 
 
+class EndpointNotFound(Exception):
+    pass
+
+
+class InvalidSport(Exception):
+    pass
+
+
+class ESPN(object):
+    """
+
+    """
+
+    ESPN_API_URL = 'http://api.espn.com/v1/sports{0}/?apikey={1}'
+    EXCLUDE = ('cricket', 'soccer', 'mma', 'racing', 'golf', 'water-polo', 'lacrosse', 'softball',
+               'tennis', 'volleyball', 'hockey')
+
+    def __init__(self, api_key):
+        self.api_key = api_key
+        self._sports = {}
+        self._leagues = {}
+
+    def get_url(self, endpoint, **kwargs):
+        """
+        Get the full endpoint URL for the given endpoint
+
+        :param endpoint: the api endpoint
+        :return: the formatted url
+        :rtype: str
+        """
+        assert isinstance(endpoint, str)
+        if not endpoint.startswith('/'):
+            endpoint = '/' + endpoint
+        if endpoint.endswith('/'):
+            endpoint = endpoint[:-2]
+
+        get_params = ['{0}={1}'.format(k, v) for k, v in kwargs.items()]
+
+        ret = self.ESPN_API_URL.format(endpoint, self.api_key)
+
+        if get_params:
+            ret = '{0}&{1}'.format(ret, '&'.join(get_params))
+
+        return ret
+
+    def get_sports(self, force=False):
+        """
+        Get a list of all the available sports
+
+        :return: the list of sports
+        :rtype: dict
+        """
+        if self._sports and not force:
+            return self._sports
+
+        r = requests.get(self.get_url('/'))
+
+        if r.status_code < 200 or r.status_code >= 300:
+            raise EndpointNotFound()
+
+        sports = r.json()['sports']
+
+        for sport in sports:
+            leagues = {}
+
+            for league in sport.get('leagues', []):
+                leagues[league['abbreviation']] = {
+                    'name': league['name'],
+                    'sport': sport['name'],
+                }
+                self._leagues[league['abbreviation']] = leagues[league['abbreviation']]
+
+            self._sports[sport['name']] = leagues
+
+        return self._sports
+
+    def get_conferences(self, league, force_reload=False):
+        """
+        Get a list of conferences
+
+        :param sport: the sport to get conferences for
+        :return: the list of conferences
+        :rtype: list
+        """
+        if sport not in self.get_sports(force_reload):
+            raise InvalidConference()
+
+        r = requests.get(self.get_url('/{0}/{1}'.format(self.get_sports()[sport]['sport'], sport)))
+
+        conferences = r.json()['sports'][0]['leagues'][0]['groups']
+
 API_KEY = "?apikey=ndzryyg4bp4zvjd43h7azdcp"
 
 ESPN_API_URL = "http://api.espn.com/v1/sports/basketball/{0}-college-basketball"
