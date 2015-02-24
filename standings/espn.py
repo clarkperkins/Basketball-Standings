@@ -63,10 +63,21 @@ class ESPN(object):
         if self._sports and not force:
             return self._sports
 
-        r = requests.get(self.get_url('/'))
+        r = requests.get('http://espn.go.com/sports/')
 
-        if r.status_code < 200 or r.status_code >= 300:
-            raise EndpointNotFound()
+        soup = BeautifulSoup(r.text)
+
+        # grab the div we want
+        sports_div = soup.find_all('div', 'span-4 bg-opaque')[0].contents
+        sports_div.remove('\n')
+
+        for section in sports_div:
+            section.contents.remove('\n')
+            for row in section.contents:
+                row.contents.remove('\n')
+                for col in row:
+                    print col.find_all('h4')
+                    print
 
         sports = r.json()['sports']
 
@@ -139,7 +150,7 @@ def get_games_list(mens_womens, conf, conference_id, start_date, tourney_date):
     future_games = []
     games_in_progress = []
 
-    end_date = tourney_date-timedelta(6)
+    end_date = tourney_date - timedelta(6)
 
     while start_date < end_date:
         print ".",

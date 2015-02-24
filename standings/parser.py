@@ -1,6 +1,101 @@
 # An HTMLParser to parse basketball standings from ESPN
 
 from HTMLParser import HTMLParser
+import json
+
+from bs4 import BeautifulSoup
+import requests
+
+
+class KimonoParser(object):
+    """
+
+    """
+    fields = ()
+    url = ''
+
+    def __init__(self, *args):
+        super(KimonoParser, self).__init__()
+        if not self.url:
+            raise ValueError('Value for url required.')
+
+        self.soup = BeautifulSoup(requests.get(self.url.format(*args)).text)
+        self.rows = ()
+
+    def parse(self):
+        self.rows = []
+        found = {}
+        for field, selector in self.fields:
+            found[field] = []
+            for row in self.soup.select(selector):
+                if row.name == 'a':
+                    found[field].append({
+                        'text': row.text,
+                        'href': row.attrs.get('href')
+                    })
+                elif row.name == 'img':
+                    found[field].append(row.attrs.get('src'))
+                else:
+                    found[field].append(json.loads(row.text))
+
+        idx = 0
+        while True:
+            next_row = {}
+            for field, selector in self.fields:
+                try:
+                    next_row[field] = found[field][idx]
+                except IndexError:
+                    continue
+
+            if not next_row:
+                # If there was nothing added in the last iteration, stop
+                break
+
+            self.rows.append(next_row)
+            idx += 1
+
+        return self.rows
+
+
+class ConferencesParser(KimonoParser):
+    url = 'http://espn.go.com/mens-college-basketball/conferences'
+    fields = (
+        ('name', 'ul > li > div > h5 > a'),
+        ('scoreboard', 'ul.medium-logos > li > div.floatleft > br > span > a:nth-of-type(1)'),
+        ('standings', 'ul.medium-logos > li > div.floatleft > br > span > a:nth-of-type(2)'),
+        ('stats', 'ul.medium-logos > li > div.floatleft > br > span > a:nth-of-type(3)'),
+        ('logo', 'ul > li > div.floatleft > a > img'),
+    )
+
+
+class StandingsParser(KimonoParser):
+    url = 'http://espn.go.com/mens-college-basketball/conferences/standings/_/id/{0}'
+    fields = (
+        ('team', 'div:nth-of-type(28) > div > table > tr[class*=row] > td:nth-of-type(1) > a:nth-of-type(1)'),
+        ('conf_record', 'div:nth-of-type(28) > div > table > tr[class*=row] > td:nth-of-type(2)'),
+        ('overall_record', 'div:nth-of-type(28) > div > table > tr[class*=row] > td:nth-of-type(5)'),
+        ('streak', 'div:nth-of-type(28) > div > table > tr[class*=row] > td:nth-of-type(7)'),
+        ('ap_25', 'div:nth-of-type(30) > div > table > tr[class*=row] > td:nth-of-type(2)'),
+        ('usa_today_25', 'div:nth-of-type(30) > div > table > tr[class*=row] > td:nth-of-type(3)'),
+        ('home_record', 'div:nth-of-type(30) > div > table > tr[class*=row] > td:nth-of-type(4)'),
+        ('away_record', 'div:nth-of-type(30) > div > table > tr[class*=row] > td:nth-of-type(5)'),
+    )
+
+
+class GamesParser(KimonoParser):
+    url = 'http://scores.espn.go.com/ncb/scoreboard?confId=50'
+    fields = (
+        ('away_team', 'div.team.visitor > div.team-capsule > p.team-name > span > a'),
+        ('home_team', 'div.team.home > div.team-capsule > p.team-name > span > a'),
+        ('status', 'div > div > div > div.game-status > p'),
+        ('away_record', 'div > div > div.team.visitor > div.team-capsule > p.record'),
+        ('home_record', 'div > div > div.team.home > div.team-capsule > p.record'),
+        ('away_score', 'div > div > div.team.visitor > ul.score > li.final'),
+        ('home_score', 'div > div > div.team.home > ul.score > li.final'),
+        ('away_logo', 'div > div > div.team.visitor > div.logo-small > img'),
+        ('home_logo', 'div > div > div.team.home > div.logo-small > img'),
+        ('headline', 'div > div > div > div.recap-headline > a'),
+    )
 
 
 class BasketballParser(HTMLParser):

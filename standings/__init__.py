@@ -1,14 +1,22 @@
+__version__ = '0.1.0'
 
-from standings.espn import ESPN
+from .basketball import BasketballStandings
+from .parser import GamesParser
+import requests
 
 
 def main():
-    espn = ESPN('ndzryyg4bp4zvjd43h7azdcp')
+    """
+    The main entry point for the CLI.
+    """
+    # b = BasketballStandings('mens', 'sec')
+    # b.run()
 
-    sports = espn.get_leagues('basketball')
+    c = GamesParser(50)
 
-    print sports
-
+    for i in c.parse():
+        print i
+        print
 
 if __name__ == '__main__':
     main()
