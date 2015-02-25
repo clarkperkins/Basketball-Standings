@@ -133,18 +133,18 @@ def get_conference_list(mens_womens):
     return conferences
 
 
-def get_games_list(mens_womens, conf, conference_id, start_date, tourney_date):
+def get_games_list(mens_womens, conf, conference_id, start_date, tourney_date, teams_in_conf):
     print "Fetching data",
     sys.stdout.flush()
 
-    r = requests.get(ESPN_API_URL.format(mens_womens) + "/teams" + API_KEY
-                     + "&groups=" + str(conference_id))
-
-    res = r.json()
-
-    teams_in_conf = {}
-    for i in res['sports'][0]['leagues'][0]['teams']:
-        teams_in_conf[i['id']] = i['nickname']
+    # r = requests.get(ESPN_API_URL.format(mens_womens) + "/teams" + API_KEY
+    #                  + "&groups=" + str(conference_id))
+    #
+    # res = r.json()
+    #
+    # teams_in_conf = {}
+    # for i in res['sports'][0]['leagues'][0]['teams']:
+    #     teams_in_conf[i['id']] = i['nickname']
 
     stats = []
     future_games = []
