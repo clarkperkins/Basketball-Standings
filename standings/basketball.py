@@ -4,7 +4,7 @@ from datetime import date
 from .util import order, record, get_win_loss_matrix, get_future_statistics
 from . import espn
 
-from .kimono import KimonoClient
+from .parser import StandingsParser, ConferencesParser, GamesParser
 from tabulate import tabulate
 
 
@@ -22,33 +22,30 @@ class BasketballStandings(object):
         self.team_ids = None
         self.future_games = None
 
-        self.conferences_client = KimonoClient('aedyvkmq', 'uQFlMfhwbaHXVg0z7gaTXx7n1pPgbSsB')
-        self.games_client = KimonoClient('cby6s5pe', 'uQFlMfhwbaHXVg0z7gaTXx7n1pPgbSsB')
-        self.standings_client = KimonoClient('6qnhla84', 'uQFlMfhwbaHXVg0z7gaTXx7n1pPgbSsB')
+        self.conferences_parser = ConferencesParser()
+        self.games_parser = GamesParser()
+        self.standings_parser = None
 
     def validate_input(self):
         while self.mens_womens not in ('mens', 'womens'):
             self.mens_womens = raw_input('Would you like standings for mens or womens basketball? ')
 
-        if not self.conference:
-            self.conference = raw_input('Enter your conference code now if you know it, otherwise '
-                                        'press enter: ')
+        conferences = self.conferences_parser.parse()
 
-        conferences = self.conferences_client.get().get('conferences', [])
-
-        for conf in conferences:
-            conf['slug'] = conf['name']['text'].lower().replace(' ', '-')
-            conf['confId'] = int(conf['name']['href'].split('=')[1])
+        # if not self.conference:
+        #     self.conference = raw_input('Enter your conference code now if you know it, otherwise '
+        #                                 'press enter: ')
 
         if not self.conference:
-            print
+            print 'Conference choices: '
             for conf in conferences:
-                print conf['slug']
-            print
-            self.conference = raw_input("Enter a conference: ")
+                print '   ', conf['slug']
+
+            exit(1)
+            # self.conference = raw_input("Enter a conference: ")
 
         if self.conference not in map(lambda x: x['slug'], conferences):
-            print '\nYou entered an invalid conference.  Exiting.'
+            print 'Invalid conference:', self.conference
             exit(1)
 
         for conf in conferences:
@@ -57,9 +54,9 @@ class BasketballStandings(object):
                 break
 
     def get_standings(self):
-        standings = self.standings_client.get_fresh(
-            params={'kimpath6': self.conf_id, 'kimmodify':1}
-        ).get('standings', [])
+        self.standings_parser = StandingsParser(self.conf_id)
+
+        standings = self.standings_parser.parse()
 
         self.standings_dict = {}
 
@@ -69,14 +66,12 @@ class BasketballStandings(object):
         self.team_ids = map(lambda x: x['teamId'], standings)
 
     def get_todays_games(self):
-        todays_games = self.games_client.get_fresh(
-            params={'confId': self.conf_id, 'kimmodify':1}
-        ).get('games', [])
+        todays_games = self.games_parser.parse()
 
         self.future_games = []
 
         for game in todays_games:
-            if 'Final' not in game['game_status']:
+            if 'Final' not in game['status']:
                 if game['home_team']['teamId'] in self.team_ids and \
                         game['away_team']['teamId'] in self.team_ids:
                     # We found an in-conference game
@@ -89,16 +84,22 @@ class BasketballStandings(object):
         pass
 
     def _make_row(self, item):
-        return item[1]['team']['name'], item[1]['record']
+        return item[1]['team']['text'], item[1]['conf_record'], item[1]['overall_record']
 
     def print_records(self):
-        tabular = map(self._make_row, self.standings_dict.items())
+        tabular = map(self._make_row, sorted(self.standings_dict.items(),
+                                             reverse=True,
+                                             key=lambda x: x[1]['conf_pct']))
         print tabulate(tabular)
 
     def run(self):
         self.validate_input()
         self.get_standings()
-        self.get_todays_games()
+        # self.get_todays_games()
+
+        self.print_records()
+
+
 
 
 

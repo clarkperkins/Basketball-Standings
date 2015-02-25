@@ -1,22 +1,18 @@
 __version__ = '0.1.0'
 
 from .basketball import BasketballStandings
-from .parser import GamesParser
-import requests
+import sys
 
 
 def main():
     """
     The main entry point for the CLI.
     """
-    # b = BasketballStandings('mens', 'sec')
-    # b.run()
-
-    c = GamesParser(50)
-
-    for i in c.parse():
-        print i
-        print
+    if len(sys.argv) > 1:
+        b = BasketballStandings('mens', sys.argv[1])
+    else:
+        b = BasketballStandings('mens', None)
+    b.run()
 
 if __name__ == '__main__':
     main()
