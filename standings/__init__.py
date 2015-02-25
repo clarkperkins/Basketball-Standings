@@ -8,10 +8,12 @@ def main():
     """
     The main entry point for the CLI.
     """
-    if len(sys.argv) > 1:
-        b = BasketballStandings('mens', sys.argv[1])
+    if len(sys.argv) < 2:
+        print 'usage: {0} [mens|womens] [conference]'.format(sys.argv[0])
+    elif len(sys.argv) > 2:
+        b = BasketballStandings(sys.argv[1], sys.argv[2])
     else:
-        b = BasketballStandings('mens', None)
+        b = BasketballStandings(sys.argv[1], None)
     b.run()
 
 if __name__ == '__main__':

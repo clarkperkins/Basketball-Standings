@@ -19,6 +19,7 @@ class KimonoParser(object):
 
     def __init__(self, *args):
         super(KimonoParser, self).__init__()
+        self.args = args
         if not self.url:
             raise ValueError('Value for url required.')
 
@@ -90,7 +91,7 @@ class KimonoParser(object):
 
 
 class ConferencesParser(KimonoParser):
-    url = 'http://espn.go.com/mens-college-basketball/conferences'
+    url = 'http://espn.go.com/{0}-college-basketball/conferences'
     fields = (
         ('name',        'ul > li > div > h5 > a'),
         ('scoreboard',  'ul.medium-logos > li > div.floatleft > br > span > a:nth-of-type(1)'),
@@ -102,13 +103,16 @@ class ConferencesParser(KimonoParser):
     def post_process(self, data):
         for conf in data:
             conf['slug'] = conf['name']['text'].lower().replace(' ', '-')
-            conf['confId'] = int(conf['name']['href'].split('=')[1])
+            if self.args[0] == 'mens':
+                conf['confId'] = int(conf['name']['href'].split('=')[1])
+            elif self.args[0] == 'womens':
+                conf['confId'] = int(conf['name']['href'].split('/')[-2])
 
         return data
 
 
 class StandingsParser(KimonoParser):
-    url = 'http://espn.go.com/mens-college-basketball/conferences/standings/_/id/{0}'
+    url = 'http://espn.go.com/{0}-college-basketball/conferences/standings/_/id/{1}'
     fields = (
         ('team',            'div:nth-of-type(28) > div > table > tr[class*=row] > '
                             'td:nth-of-type(1) > a:nth-of-type(1)'),
