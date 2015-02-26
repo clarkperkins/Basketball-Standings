@@ -1,20 +1,31 @@
 __version__ = '0.1.0'
 
+from argparse import ArgumentParser
+
 from .basketball import BasketballStandings
-import sys
 
 
 def main():
     """
     The main entry point for the CLI.
     """
-    if len(sys.argv) < 2:
-        print 'usage: {0} [mens|womens] [conference]'.format(sys.argv[0])
-    elif len(sys.argv) > 2:
-        b = BasketballStandings(sys.argv[1], sys.argv[2])
-    else:
-        b = BasketballStandings(sys.argv[1], None)
-    b.run()
+    parser = ArgumentParser(description='Get basketball standings')
+
+    parser.add_argument('mens_womens',
+                        help='choose mens or womens basketball')
+
+    parser.add_argument('conference',
+                        nargs='?',
+                        help='the conference code')
+
+    args = parser.parse_args()
+
+    try:
+        b = BasketballStandings(args.mens_womens, args.conference)
+
+        b.run()
+    except KeyboardInterrupt:
+        exit(1)
 
 if __name__ == '__main__':
     main()
