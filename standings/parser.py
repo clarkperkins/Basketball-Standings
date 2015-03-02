@@ -1,6 +1,200 @@
 # An HTMLParser to parse basketball standings from ESPN
 
 from HTMLParser import HTMLParser
+from datetime import date
+from urllib2 import urlopen
+
+from bs4 import BeautifulSoup
+
+
+class RowMismatchError(Exception):
+    pass
+
+
+class KimonoParser(object):
+    """
+
+    """
+    fields = ()
+    url = ''
+
+    def __init__(self, *args):
+        super(KimonoParser, self).__init__()
+        self.args = args
+        if not self.url:
+            raise ValueError('Value for url required.')
+
+        self.soup = BeautifulSoup(urlopen(self.url.format(*args)).read())
+
+    def parse(self):
+        """
+        Parse the data from the html page associated with the given URL.
+        :return: All the records
+        :rtype: list
+        """
+        rows = []
+        found = {}
+        types = {}
+
+        # Scrape the fields out of the html
+        for field, selector in self.fields:
+            found[field] = []
+            for row in self.soup.select(selector):
+                if field in types and types[field] != row.name:
+                    raise RowMismatchError()
+
+                types[field] = row.name
+
+                if row.name == 'a':
+                    found[field].append({
+                        'text': row.text,
+                        'href': row.attrs.get('href')
+                    })
+                elif row.name == 'img':
+                    found[field].append(row.attrs.get('src'))
+                else:
+                    found[field].append(row.text)
+
+        # normalize all the row lists
+        the_len = None
+        for field, data in found.items():
+            if the_len is not None and the_len != len(data):
+                while len(data) < the_len:
+                    if types[field] == 'a':
+                        data.append({
+                            'text': '',
+                            'href': ''
+                        })
+                    else:
+                        data.append('')
+
+            the_len = len(data)
+
+        # Transform them into rows
+        idx = 0
+        while True:
+            next_row = {}
+            for field, selector in self.fields:
+                try:
+                    next_row[field] = found[field][idx]
+                except IndexError:
+                    continue
+
+            if not next_row:
+                # If there was nothing added in the last iteration, stop
+                break
+
+            rows.append(next_row)
+            idx += 1
+
+        return self.post_process(rows)
+
+    def post_process(self, data):
+        """
+        You may override this method to do any data post-processing.
+        By default this will just return the original list.
+        :param data: The list of data that was scraped
+        :return: the transformed data
+        :rtype: list
+        """
+        return data
+
+
+class ConferencesParser(KimonoParser):
+    url = 'http://espn.go.com/{0}-college-basketball/conferences'
+    fields = (
+        ('name',        'ul > li > div > h5 > a'),
+        ('scoreboard',  'ul.medium-logos > li > div.floatleft > br > span > a:nth-of-type(1)'),
+        ('standings',   'ul.medium-logos > li > div.floatleft > br > span > a:nth-of-type(2)'),
+        ('stats',       'ul.medium-logos > li > div.floatleft > br > span > a:nth-of-type(3)'),
+        ('logo',        'ul > li > div.floatleft > a > img'),
+    )
+
+    def post_process(self, data):
+        for conf in data:
+            conf['slug'] = conf['name']['text'].lower().replace(' ', '-')
+            if self.args[0] == 'mens':
+                conf['confId'] = int(conf['name']['href'].split('=')[1])
+            elif self.args[0] == 'womens':
+                conf['confId'] = int(conf['name']['href'].split('/')[-2])
+
+        return data
+
+
+class StandingsParser(KimonoParser):
+    url = 'http://espn.go.com/{0}-college-basketball/conferences/standings/_/id/{1}'
+    fields = (
+        ('team',            'div:nth-of-type(28) > div > table > tr[class*=row] > '
+                            'td:nth-of-type(1) > a:nth-of-type(1)'),
+        ('conf_record',     'div:nth-of-type(28) > div > table > tr[class*=row] > '
+                            'td:nth-of-type(2)'),
+        ('overall_record',  'div:nth-of-type(28) > div > table > tr[class*=row] > '
+                            'td:nth-of-type(5)'),
+        ('streak',          'div:nth-of-type(28) > div > table > tr[class*=row] > '
+                            'td:nth-of-type(7)'),
+        ('ap_25',           'div:nth-of-type(30) > div > table > tr[class*=row] > '
+                            'td:nth-of-type(2)'),
+        ('usa_today_25',    'div:nth-of-type(30) > div > table > tr[class*=row] > '
+                            'td:nth-of-type(3)'),
+        ('home_record',     'div:nth-of-type(30) > div > table > tr[class*=row] > '
+                            'td:nth-of-type(4)'),
+        ('away_record',     'div:nth-of-type(30) > div > table > tr[class*=row] > '
+                            'td:nth-of-type(5)'),
+    )
+
+    def post_process(self, data):
+        for team in data:
+            conf_split = team['conf_record'].split('-')
+            over_split = team['overall_record'].split('-')
+
+            team['conf_wins'] = int(conf_split[0])
+            team['conf_losses'] = int(conf_split[1])
+            team['overall_wins'] = int(over_split[0])
+            team['overall_losses'] = int(over_split[1])
+
+            id_split = team['team']['href'].split('/')
+            team['teamId'] = int(id_split[-2])
+
+            team['conf_pct'] = float(team['conf_wins']) / (team['conf_wins'] + team['conf_losses'])
+        return data
+
+
+class GamesParser(KimonoParser):
+    url = 'http://scores.espn.go.com/ncb/scoreboard?confId=50&date={0}'
+    fields = (
+        ('away_team',   'div.team.visitor > div.team-capsule > p.team-name > span > a'),
+        ('home_team',   'div.team.home > div.team-capsule > p.team-name > span > a'),
+        ('status',      'div > div > div > div.game-status > p'),
+        ('away_record', 'div > div > div.team.visitor > div.team-capsule > p.record'),
+        ('home_record', 'div > div > div.team.home > div.team-capsule > p.record'),
+        ('away_score',  'div > div > div.team.visitor > ul.score > li.final'),
+        ('home_score',  'div > div > div.team.home > ul.score > li.final'),
+        ('away_logo',   'div > div > div.team.visitor > div.logo-small > img'),
+        ('home_logo',   'div > div > div.team.home > div.logo-small > img'),
+        ('headline',    'div > div > div > div.recap-headline > a'),
+    )
+
+    def __init__(self, game_date=date.today().strftime("%Y%m%d")):
+        # Make date param optional
+        super(GamesParser, self).__init__(game_date)
+
+    def post_process(self, data):
+        for game in data:
+            game['date'] = self.args[0]
+
+            try:
+                id_split = game['away_team']['href'].split('/')
+                game['away_team']['teamId'] = int(id_split[-2])
+            except IndexError:
+                game['away_team']['teamId'] = 0
+
+            try:
+                id_split = game['home_team']['href'].split('/')
+                game['home_team']['teamId'] = int(id_split[-2])
+            except IndexError:
+                game['home_team']['teamId'] = 0
+
+        return data
 
 
 class BasketballParser(HTMLParser):

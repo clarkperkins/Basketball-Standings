@@ -1,14 +1,30 @@
+__version__ = '0.1.0'
 
-from standings.espn import ESPN
+from argparse import ArgumentParser
+
+from .basketball import BasketballApp
 
 
 def main():
-    espn = ESPN('ndzryyg4bp4zvjd43h7azdcp')
+    """
+    The main entry point for the CLI.
+    """
+    parser = ArgumentParser(description='Get basketball standings')
 
-    sports = espn.get_leagues('basketball')
+    parser.add_argument('mens_womens',
+                        help='choose mens or womens basketball')
 
-    print sports
+    parser.add_argument('conference',
+                        nargs='?',
+                        help='the conference code')
 
+    args = parser.parse_args()
+
+    try:
+        app = BasketballApp(args.mens_womens, args.conference)
+        app.run()
+    except KeyboardInterrupt:
+        exit(1)
 
 if __name__ == '__main__':
     main()
