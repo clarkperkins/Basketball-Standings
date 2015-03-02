@@ -19,12 +19,17 @@ class Utils(object):
         team_records = {}
 
         for game in games:
-            if game.home_score > game.away_score:
-                winner = game.home_team_id
-                loser = game.away_team_id
+            if type(game) == tuple:
+                winner = game[0]
+                loser = game[1]
             else:
-                winner = game.away_team_id
-                loser = game.home_team_id
+
+                if game.home_score > game.away_score:
+                    winner = game.home_team_id
+                    loser = game.away_team_id
+                else:
+                    winner = game.away_team_id
+                    loser = game.home_team_id
             team_records.setdefault(winner, {'wins': [], 'losses': []})['wins'].append(loser)
             team_records.setdefault(loser, {'wins': [], 'losses': []})['losses'].append(winner)
 
@@ -172,15 +177,10 @@ class Utils(object):
 
                 self.hell += 1
             else:
-                cur_game = self.future_games[game_no]
-                cur_game.home_score = 1
-                cur_game.away_score = 0
-                self.stats.append(cur_game)
+                self.stats.append(self.future_games[game_no])
                 compute_future_statistics(game_no + 1)
                 self.stats.pop()
-                cur_game.home_score = 0
-                cur_game.away_score = 1
-                self.stats.append(cur_game)
+                self.stats.append((self.future_games[game_no][1], self.future_games[game_no][0]))
                 compute_future_statistics(game_no + 1)
                 self.stats.pop()
 

@@ -228,9 +228,15 @@ class BasketballApp(object):
         future_games = []
         for game in conf_games:
             if 'Final' in game.status:
-                past_games.append(game)
+                if game.home_score > game.away_score:
+                    winner = game.home_team_id
+                    loser = game.away_team_id
+                else:
+                    winner = game.away_team_id
+                    loser = game.home_team_id
+                past_games.append((winner, loser))
             else:
-                future_games.append(game)
+                future_games.append((game.away_team_id, game.home_team_id))
 
         team_records = utils.get_win_loss_matrix(past_games)
 
@@ -287,7 +293,7 @@ class BasketballApp(object):
 
         if 0 < len(future_games) <= 21:
             for game in future_games:
-                print game.away_team.name, "@", game.home_team.name
+                print self.session.query(Team).get(game[0]).name, "@", self.session.query(Team).get(game[1]).name
 
             possible_standings = utils.get_future_statistics(past_games, future_games)
 
