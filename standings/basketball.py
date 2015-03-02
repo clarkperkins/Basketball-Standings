@@ -5,7 +5,7 @@ from tabulate import tabulate
 from sqlalchemy import create_engine
 
 from .util import Utils
-from .parser import StandingsParser, ConferencesParser, GamesParser
+from .parsers import StandingsParser, ConferencesParser, GamesParser
 from .models import Conference, Team, Game
 from .db import Base, Session
 from . import espn
