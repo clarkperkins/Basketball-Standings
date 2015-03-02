@@ -5,7 +5,7 @@ from datetime import timedelta
 
 import requests
 
-from standings.parser import BasketballParser
+from .parsers import BasketballParser
 
 
 def get_games_list(mens_womens, conf, conference_id, start_date, tourney_date, teams_in_conf):
