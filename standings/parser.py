@@ -2,9 +2,9 @@
 
 from HTMLParser import HTMLParser
 from datetime import date
+from urllib2 import urlopen
 
 from bs4 import BeautifulSoup
-import requests
 
 
 class RowMismatchError(Exception):
@@ -24,13 +24,19 @@ class KimonoParser(object):
         if not self.url:
             raise ValueError('Value for url required.')
 
-        self.soup = BeautifulSoup(requests.get(self.url.format(*args)).text)
-        self.rows = ()
+        self.soup = BeautifulSoup(urlopen(self.url.format(*args)).read())
 
     def parse(self):
-        self.rows = []
+        """
+        Parse the data from the html page associated with the given URL.
+        :return: All the records
+        :rtype: list
+        """
+        rows = []
         found = {}
         types = {}
+
+        # Scrape the fields out of the html
         for field, selector in self.fields:
             found[field] = []
             for row in self.soup.select(selector):
@@ -49,6 +55,7 @@ class KimonoParser(object):
                 else:
                     found[field].append(row.text)
 
+        # normalize all the row lists
         the_len = None
         for field, data in found.items():
             if the_len is not None and the_len != len(data):
@@ -63,6 +70,7 @@ class KimonoParser(object):
 
             the_len = len(data)
 
+        # Transform them into rows
         idx = 0
         while True:
             next_row = {}
@@ -76,14 +84,15 @@ class KimonoParser(object):
                 # If there was nothing added in the last iteration, stop
                 break
 
-            self.rows.append(next_row)
+            rows.append(next_row)
             idx += 1
 
-        return self.post_process(self.rows)
+        return self.post_process(rows)
 
     def post_process(self, data):
         """
-        You may override this method to do any data post-processing
+        You may override this method to do any data post-processing.
+        By default this will just return the original list.
         :param data: The list of data that was scraped
         :return: the transformed data
         :rtype: list

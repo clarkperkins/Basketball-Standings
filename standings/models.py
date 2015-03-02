@@ -10,7 +10,7 @@ class Conference(Base):
 
 class Team(Base):
     name = Column(String)
-    conference_id = Column(ForeignKey('conference.id'))
+    conference_id = Column(ForeignKey(Conference.id))
     conf_wins = Column(Integer)
     conf_losses = Column(Integer)
     overall_wins = Column(Integer)
@@ -20,8 +20,8 @@ class Team(Base):
 
 class Game(Base):
     date = Column(String)
-    home_team_id = Column(ForeignKey('team.id'))
-    away_team_id = Column(ForeignKey('team.id'))
+    home_team_id = Column(ForeignKey(Team.id))
+    away_team_id = Column(ForeignKey(Team.id))
     status = Column(String)
     home_score = Column(Integer)
     away_score = Column(Integer)
