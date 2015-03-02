@@ -233,26 +233,6 @@ class BasketballApp(object):
             else:
                 future_games.append(game)
 
-
-        # conf_teams = {}
-        # for id, team in self.standings_dict.items():
-        #     conf_teams[id] = team['team']['text']
-        #
-        # games_list = espn.get_games_list(
-        #     self.mens_womens,
-        #     self.conference,
-        #     self.conf_id,
-        #     date(2014, 11, 1),
-        #     date(2015, 3, 8),
-        #     conf_teams
-        # )
-        #
-        # past_games = games_list['past_games']
-        # future_games = games_list['future_games']
-        # games_in_progress = games_list['games_in_progress']
-        #
-        # print
-
         team_records = utils.get_win_loss_matrix(past_games)
 
         max_len = 0
