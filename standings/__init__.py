@@ -2,7 +2,7 @@ __version__ = '0.1.0'
 
 from argparse import ArgumentParser
 
-from .basketball import BasketballStandings
+from .basketball import BasketballApp
 
 
 def main():
@@ -21,9 +21,8 @@ def main():
     args = parser.parse_args()
 
     try:
-        b = BasketballStandings(args.mens_womens, args.conference)
-
-        b.run()
+        app = BasketballApp(args.mens_womens, args.conference)
+        app.run()
     except KeyboardInterrupt:
         exit(1)
 

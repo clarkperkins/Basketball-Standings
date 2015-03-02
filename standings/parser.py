@@ -1,6 +1,7 @@
 # An HTMLParser to parse basketball standings from ESPN
 
 from HTMLParser import HTMLParser
+from datetime import date
 
 from bs4 import BeautifulSoup
 import requests
@@ -150,7 +151,7 @@ class StandingsParser(KimonoParser):
 
 
 class GamesParser(KimonoParser):
-    url = 'http://scores.espn.go.com/ncb/scoreboard?confId=50'
+    url = 'http://scores.espn.go.com/ncb/scoreboard?confId=50&date={0}'
     fields = (
         ('away_team',   'div.team.visitor > div.team-capsule > p.team-name > span > a'),
         ('home_team',   'div.team.home > div.team-capsule > p.team-name > span > a'),
@@ -164,8 +165,14 @@ class GamesParser(KimonoParser):
         ('headline',    'div > div > div > div.recap-headline > a'),
     )
 
+    def __init__(self, game_date=date.today().strftime("%Y%m%d")):
+        # Make date param optional
+        super(GamesParser, self).__init__(game_date)
+
     def post_process(self, data):
         for game in data:
+            game['date'] = self.args[0]
+
             try:
                 id_split = game['away_team']['href'].split('/')
                 game['away_team']['teamId'] = int(id_split[-2])
