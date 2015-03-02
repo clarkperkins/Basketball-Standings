@@ -8,7 +8,6 @@ from .util import Utils
 from .parsers import StandingsParser, ConferencesParser, GamesParser
 from .models import Conference, Team, Game
 from .db import Base, Session
-from . import espn
 
 # Grab the db file location
 DB_FILE = os.environ.get('BASKETBALL_DB',
