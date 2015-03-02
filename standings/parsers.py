@@ -39,6 +39,7 @@ class KimonoParser(object):
         """
         rows = []
         types = {}
+        saved = None
 
         if not self.base:
             raise MissingBaseError()
@@ -52,6 +53,9 @@ class KimonoParser(object):
                 if len(columns) == 0:
                     # Handle missing field
                     next_type = types.get(field)
+                    if not next_type:
+                        # try to guess it
+                        next_type = selector.split(' > ')[-1].split(':')[0]
                     if next_type:
                         if next_type == 'a':
                             next_row[field] = {
@@ -85,6 +89,23 @@ class KimonoParser(object):
                     next_row[field] = column.text
 
             rows.append(next_row)
+
+        # Scan through a second time in case the fields were not discernable the first time through
+        for row in rows:
+            missing = False
+            for field, selector in self.fields:
+                if field not in row:
+                    missing = True
+                    if types[field] == 'a':
+                        row[field] = {
+                            'text': '',
+                            'href': ''
+                        }
+                    else:
+                        row[field] = ''
+            if not missing:
+                # All the fields were intact, so we're done
+                break
 
         return self.post_process(rows)
 
@@ -191,6 +212,10 @@ class GamesParser(KimonoParser):
                 game['home_team']['teamId'] = int(id_split[-2])
             except IndexError:
                 game['home_team']['teamId'] = 0
+
+            # if 'headline' not in game:
+            #     import json
+            #     print json.dumps(game, indent=3)
 
         return data
 

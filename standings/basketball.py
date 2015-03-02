@@ -122,26 +122,60 @@ class BasketballApp(object):
 
         self.team_ids = map(lambda x: x['teamId'], standings)
 
-    def get_todays_games(self):
-        todays_games = self.games_parser.parse()
+    def get_games_for_date(self, game_date):
+        """
+        Pulls all the games for today from ESPN.
+        :param game_date:
+        :return:
+        """
+        print 'Fetching', game_date.strftime('%Y%m%d')
 
-        self.future_games = []
+        games_parser = GamesParser(game_date.strftime('%Y%m%d'))
 
-        for game in todays_games:
-            if 'Final' not in game['status']:
-                if game['home_team']['teamId'] in self.team_ids and \
-                        game['away_team']['teamId'] in self.team_ids:
-                    # We found an in-conference game
-                    self.future_games.append((
-                        game['home_team']['teamId'],
-                        game['away_team']['teamId']
-                    ))
+        games = games_parser.parse()
+
+        for game in games:
+            db_game = self.session.query(Game).filter_by(
+                home_team_id=game['home_team']['teamId'],
+                away_team_id=game['away_team']['teamId'],
+            ).first()
+
+            if db_game:
+                db_game.status = game['status']
+                db_game.home_score = game['home_score']
+                db_game.away_score = game['away_score']
+                db_game.headline_url = game['headline']['href']
+            else:
+                self.session.add(Game(
+                    date=game_date.strftime('%Y%m%d'),
+                    home_team_id=game['home_team']['teamId'],
+                    away_team_id=game['away_team']['teamId'],
+                    status=game['status'],
+                    home_score=game['home_score'],
+                    away_score=game['away_score'],
+                    headline_url=game['headline']['href'],
+                ))
+
+        self.session.commit()
+
+    def get_today_games(self):
+        """
+
+        :return:
+        """
+        self.get_games_for_date(date.today())
 
     def get_past_games(self):
+        """
+
+        :return:
+        """
         today = date.today()
         year = today.year if today.month >= 11 else today.year - 1
 
-        games = self.session.query(Game).order_by(Game.date).all()
+        # Get all the games in the db that are final - then find the date of the last one and
+        # start from there
+        games = self.session.query(Game).filter(Game.status.like('%Final%')).order_by(Game.date).all()
 
         if len(games) == 0:
             cur_date = date(year, 11, 1)
@@ -151,38 +185,26 @@ class BasketballApp(object):
             cur_date = date(int(cur_date_str[0:4]), int(cur_date_str[4:6]), int(cur_date_str[6:8]))
 
         while cur_date < today:
-            games_parser = GamesParser(cur_date.strftime("%Y%m%d"))
-
-            games = games_parser.parse()
-
-            for game in games:
-                db_game = self.session.query(Game).filter_by(
-                    home_team_id=game['home_team']['teamId'],
-                    away_team_id=game['away_team']['teamId'],
-                ).first()
-
-                if db_game:
-                    db_game.status = game['status']
-                    db_game.home_score = game['home_score']
-                    db_game.away_score = game['away_score']
-                    db_game.headline_url = game['headline']['href']
-                else:
-                    self.session.add(Game(
-                        date=cur_date.strftime("%Y%m%d"),
-                        home_team_id=game['home_team']['teamId'],
-                        away_team_id=game['away_team']['teamId'],
-                        status=game['status'],
-                        home_score=game['home_score'],
-                        away_score=game['away_score'],
-                        headline_url=game['headline']['href'],
-                    ))
-
-            self.session.commit()
-
+            self.get_games_for_date(cur_date)
             cur_date += timedelta(1)
 
     def get_future_games(self):
-        pass
+        """
+
+        :return:
+        """
+        cur_date = date.today() + timedelta(1)
+        final_date = date(2015, 3, 7)
+
+        games = self.session.query(Game).filter(Game.date == cur_date.strftime('%Y%m%d')).all()
+
+        if len(games) > 0:
+            # the games are already here, so stop
+            return
+
+        while cur_date <= final_date:
+            self.get_games_for_date(cur_date)
+            cur_date += timedelta(1)
 
     def _make_row(self, item):
         return item[1]['team']['text'], item[1]['conf_record'], item[1]['overall_record']
@@ -196,42 +218,48 @@ class BasketballApp(object):
     def run(self):
         self.validate_input()
         self.get_standings()
-        # self.get_past_games()
-        # self.get_todays_games()
+        self.get_past_games()
+        self.get_future_games()
+        self.get_today_games()
 
-        # conf_games = self.session.query(Game).filter(Game.home_team_id.in_(self.team_ids),
-        #                                              Game.away_team_id.in_(self.team_ids),
-        #                                              Game.date == '20150226').all()
+        conf_games = self.session.query(Game).filter(Game.home_team_id.in_(self.team_ids),
+                                                     Game.away_team_id.in_(self.team_ids)).all()
 
-        # for game in conf_games:
-        #     print game.home_team_id, game.home_score, game.away_team_id, game.away_score
+        past_games = []
+        future_games = []
+        for game in conf_games:
+            if 'Final' in game.status:
+                past_games.append(game)
+            else:
+                future_games.append(game)
 
-        conf_teams = {}
-        for id, team in self.standings_dict.items():
-            conf_teams[id] = team['team']['text']
 
-        games_list = espn.get_games_list(
-            self.mens_womens,
-            self.conference,
-            self.conf_id,
-            date(2014, 11, 1),
-            date(2015, 3, 8),
-            conf_teams
-        )
-
-        past_games = games_list['past_games']
-        future_games = games_list['future_games']
-        games_in_progress = games_list['games_in_progress']
-
-        print
+        # conf_teams = {}
+        # for id, team in self.standings_dict.items():
+        #     conf_teams[id] = team['team']['text']
+        #
+        # games_list = espn.get_games_list(
+        #     self.mens_womens,
+        #     self.conference,
+        #     self.conf_id,
+        #     date(2014, 11, 1),
+        #     date(2015, 3, 8),
+        #     conf_teams
+        # )
+        #
+        # past_games = games_list['past_games']
+        # future_games = games_list['future_games']
+        # games_in_progress = games_list['games_in_progress']
+        #
+        # print
 
         team_records = utils.get_win_loss_matrix(past_games)
 
         max_len = 0
         num_games = 0
         for i in team_records.keys():
-            if len(i) > max_len:
-                max_len = len(i)
+            if len(self.standings_dict[i]['team']['text']) > max_len:
+                max_len = len(self.standings_dict[i]['team']['text'])
             num_games += len(team_records[i]['wins'])
             num_games += len(team_records[i]['losses'])
 
@@ -262,22 +290,25 @@ class BasketballApp(object):
         num = 1
 
         for team in this_order:
-            print repr(num).rjust(2), team.ljust(max_len+1), utils.record(team_records, team)
+            print repr(num).rjust(2), \
+                self.session.query(Team).get(team).name.\
+                    ljust(max_len+1), \
+                utils.record(team_records, team)
             num += 1
 
         print
         print
 
-        print "There are", len(games_in_progress), "games in progress."
-        for game in games_in_progress:
-            print game
+        # print "There are", len(games_in_progress), "games in progress."
+        # for game in games_in_progress:
+        #     print game
 
         print
         print "There are", len(future_games), "games left."
 
         if 0 < len(future_games) <= 21:
             for game in future_games:
-                print game[0], "@", game[1]
+                print game.away_team.name, "@", game.home_team.name
 
             possible_standings = utils.get_future_statistics(past_games, future_games)
 
@@ -297,7 +328,7 @@ class BasketballApp(object):
             print
 
             for team in this_order:
-                print team.ljust(max_len + 1),
+                print self.session.query(Team).get(team).name.ljust(max_len + 1),
                 for percent in possible_percents[team]:
                     if percent == 0.0:
                         print "    -",

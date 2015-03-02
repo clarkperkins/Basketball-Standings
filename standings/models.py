@@ -1,5 +1,5 @@
 
-from .db import Base
+from .db import Base, Session
 from sqlalchemy import Column, Integer, String, ForeignKey
 
 
@@ -17,6 +17,10 @@ class Team(Base):
     overall_losses = Column(Integer)
     streak = Column(String)
 
+    @property
+    def conference(self):
+        return Session().query(Conference).get(self.conference_id)
+
 
 class Game(Base):
     date = Column(String)
@@ -26,3 +30,11 @@ class Game(Base):
     home_score = Column(Integer)
     away_score = Column(Integer)
     headline_url = Column(String)
+
+    @property
+    def away_team(self):
+        return Session().query(Team).get(self.away_team_id)
+
+    @property
+    def home_team(self):
+        return Session().query(Team).get(self.home_team_id)

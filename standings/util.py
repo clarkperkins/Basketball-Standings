@@ -1,5 +1,7 @@
 # Utility functions for calculating the rankings of basketball teams
 import sys
+from .db import Session
+from .models import Team
 
 
 class Utils(object):
@@ -11,16 +13,20 @@ class Utils(object):
         self.future_games = None
         self.possible_standings = None
 
+        self.session = None
+
     def get_win_loss_matrix(self, games):
         team_records = {}
 
         for game in games:
-            if game[0] not in team_records:
-                team_records[game[0]] = {'wins': [], 'losses': []}
-            if game[1] not in team_records:
-                team_records[game[1]] = {'wins': [], 'losses': []}
-            team_records[game[0]]['wins'].append(game[1])
-            team_records[game[1]]['losses'].append(game[0])
+            if game.home_score > game.away_score:
+                winner = game.home_team_id
+                loser = game.away_team_id
+            else:
+                winner = game.away_team_id
+                loser = game.home_team_id
+            team_records.setdefault(winner, {'wins': [], 'losses': []})['wins'].append(loser)
+            team_records.setdefault(loser, {'wins': [], 'losses': []})['losses'].append(winner)
 
         return team_records
 
@@ -49,6 +55,7 @@ class Utils(object):
         return the_order
 
     def check_record(self, team_recs, team, other_teams, print_ties):
+        self.session = Session()
         wins = 0
         losses = 0
         for i in team_recs[team]['wins']:
@@ -58,9 +65,9 @@ class Utils(object):
             if i in other_teams:
                 losses += 1
         if print_ties:
-            print team, "is", str(wins)+"-"+str(losses), "vs",
+            print self.session.query(Team).get(team).name, "is", str(wins)+"-"+str(losses), "vs",
             for i in other_teams:
-                print i+" ",
+                print self.session.query(Team).get(i).name+" ",
             print
         return [wins, losses]
 
@@ -153,7 +160,7 @@ class Utils(object):
             self.prev_print = str(round(float(self.hell) / self.total_possibilities * 100, 2)) + '%'
             sys.stdout.write(self.prev_print)
             sys.stdout.flush()
-            if game_no is len(self.future_games):
+            if game_no == len(self.future_games):
                 team_records = self.get_win_loss_matrix(self.stats)
 
                 this_order = self.order(team_records, False)
@@ -165,10 +172,15 @@ class Utils(object):
 
                 self.hell += 1
             else:
-                self.stats.append(self.future_games[game_no])
+                cur_game = self.future_games[game_no]
+                cur_game.home_score = 1
+                cur_game.away_score = 0
+                self.stats.append(cur_game)
                 compute_future_statistics(game_no + 1)
                 self.stats.pop()
-                self.stats.append([self.future_games[game_no][1], self.future_games[game_no][0]])
+                cur_game.home_score = 0
+                cur_game.away_score = 1
+                self.stats.append(cur_game)
                 compute_future_statistics(game_no + 1)
                 self.stats.pop()
 
