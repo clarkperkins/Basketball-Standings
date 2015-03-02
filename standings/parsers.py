@@ -111,12 +111,12 @@ class ConferencesParser(KimonoParser):
     )
 
     def post_process(self, data):
-        # for conf in data:
-        #     conf['slug'] = conf['name']['text'].lower().replace(' ', '-')
-        #     if self.args[0] == 'mens':
-        #         conf['confId'] = int(conf['name']['href'].split('=')[1])
-        #     elif self.args[0] == 'womens':
-        #         conf['confId'] = int(conf['name']['href'].split('/')[-2])
+        for conf in data:
+            conf['slug'] = conf['name']['text'].lower().replace(' ', '-')
+            if self.args[0] == 'mens':
+                conf['confId'] = int(conf['name']['href'].split('=')[1])
+            elif self.args[0] == 'womens':
+                conf['confId'] = int(conf['name']['href'].split('/')[-2])
 
         return data
 
