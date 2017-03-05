@@ -8,14 +8,7 @@ A python command-line interface for calculating college basketball conference st
 The easiest way to install is using pip:
 
 ```bash
-pip install git+https://github.com/clarkperkins/Basketball-Standings.git
-```
-
-OR
-
-```bash
-git clone https://github.com/clarkperkins/Basketball-Standings.git
-pip install ./Basketball-Standings
+pip install https://github.com/clarkperkins/Basketball-Standings/archive/master.tar.gz
 ```
 
 ## Usage
