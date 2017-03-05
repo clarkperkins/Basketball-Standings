@@ -1,24 +1,23 @@
-from datetime import date, timedelta
+from __future__ import print_function
+
 import os
+import sys
+from datetime import date, timedelta
 
-from tabulate import tabulate
 from sqlalchemy import create_engine
+from tabulate import tabulate
 
-from .util import Utils
-from .parsers import StandingsParser, ConferencesParser, GamesParser
-from .models import Conference, Team, Game
+from . import util
 from .db import Base, Session
+from .models import Conference, Team, Game
+from .parsers import StandingsParser, ConferencesParser, GamesParser
 
 # Grab the db file location
-DB_FILE = os.environ.get('BASKETBALL_DB',
-                         os.path.expanduser(os.path.join('~', '.basketball', 'db.sqlite')))
+DB_DIR = os.environ.get('BASKETBALL_DIR', os.path.expanduser(os.path.join('~', '.basketball')))
 
 # Create the directory if it's not there
-DB_DIR = os.path.dirname(DB_FILE)
 if not os.path.isdir(DB_DIR):
     os.makedirs(DB_DIR)
-
-utils = Utils()
 
 
 class BasketballApp(object):
@@ -28,6 +27,8 @@ class BasketballApp(object):
     def __init__(self, mens_womens, conference):
         super(BasketballApp, self).__init__()
 
+        self._team_id_cache = {}
+
         self.mens_womens = mens_womens
         self.conference = conference
         self.conf_id = None
@@ -36,11 +37,10 @@ class BasketballApp(object):
         self.future_games = None
 
         self.conferences_parser = ConferencesParser(self.mens_womens)
-        self.games_parser = GamesParser()
         self.standings_parser = None
 
         # Create the db engine & tables
-        self.engine = create_engine('sqlite:///%s' % DB_FILE)
+        self.engine = create_engine('sqlite:///{0}/{1}.db'.format(DB_DIR, self.mens_womens))
         Base.metadata.create_all(self.engine)
 
         # Create the db session
@@ -72,13 +72,13 @@ class BasketballApp(object):
         conferences = self.session.query(Conference).all()
 
         if not self.conference:
-            print 'Conference choices: '
+            print('Conference choices: ')
             for conf in conferences:
-                print '   ', conf.slug
+                print('    {}'.format(conf.slug))
             exit(1)
 
         if self.conference not in map(lambda x: x.slug, conferences):
-            print 'Invalid conference:', self.conference
+            print('Invalid conference: {}'.format(self.conference))
             exit(1)
 
         for conf in conferences:
@@ -127,32 +127,32 @@ class BasketballApp(object):
         :param game_date:
         :return:
         """
-        print 'Fetching', game_date.strftime('%Y%m%d')
+        print('Fetching {}'.format(game_date.strftime('%Y%m%d')))
 
-        games_parser = GamesParser(game_date.strftime('%Y%m%d'))
+        games_parser = GamesParser(self.mens_womens, game_date.strftime('%Y%m%d'))
 
         games = games_parser.parse()
 
         for game in games:
             db_game = self.session.query(Game).filter_by(
-                home_team_id=game['home_team']['teamId'],
-                away_team_id=game['away_team']['teamId'],
+                home_team_id=int(game['home_team']['id']),
+                away_team_id=int(game['away_team']['id']),
             ).first()
 
             if db_game:
                 db_game.status = game['status']
                 db_game.home_score = game['home_score']
                 db_game.away_score = game['away_score']
-                db_game.headline_url = game['headline']['href']
+                db_game.conference_game = game['conference_game']
             else:
                 self.session.add(Game(
                     date=game_date.strftime('%Y%m%d'),
-                    home_team_id=game['home_team']['teamId'],
-                    away_team_id=game['away_team']['teamId'],
+                    home_team_id=int(game['home_team']['id']),
+                    away_team_id=int(game['away_team']['id']),
                     status=game['status'],
                     home_score=game['home_score'],
                     away_score=game['away_score'],
-                    headline_url=game['headline']['href'],
+                    conference_game=game['conference_game'],
                 ))
 
         self.session.commit()
@@ -174,7 +174,9 @@ class BasketballApp(object):
 
         # Get all the games in the db that are final - then find the date of the last one and
         # start from there
-        games = self.session.query(Game).filter(Game.status.like('%Final%')).order_by(Game.date).all()
+        games = self.session.query(Game).filter(
+            Game.status.like('%Final%')
+        ).order_by(Game.date).all()
 
         if len(games) == 0:
             cur_date = date(year, 11, 1)
@@ -193,7 +195,7 @@ class BasketballApp(object):
         :return:
         """
         cur_date = date.today() + timedelta(1)
-        final_date = date(2015, 3, 7)
+        final_date = date(2017, 3, 5)
 
         games = self.session.query(Game).filter(Game.date == cur_date.strftime('%Y%m%d')).all()
 
@@ -205,14 +207,20 @@ class BasketballApp(object):
             self.get_games_for_date(cur_date)
             cur_date += timedelta(1)
 
-    def _make_row(self, item):
+    @staticmethod
+    def _make_row(item):
         return item[1]['team']['text'], item[1]['conf_record'], item[1]['overall_record']
 
     def print_records(self):
         tabular = map(self._make_row, sorted(self.standings_dict.items(),
                                              reverse=True,
                                              key=lambda x: x[1]['conf_pct']))
-        print tabulate(tabular)
+        print(tabulate(tabular))
+
+    def get_team_by_id(self, team_id):
+        if team_id not in self._team_id_cache:
+            self._team_id_cache[team_id] = self.session.query(Team).get(team_id)
+        return self._team_id_cache[team_id]
 
     def run(self):
         self.validate_input()
@@ -238,7 +246,7 @@ class BasketballApp(object):
             else:
                 future_games.append((game.away_team_id, game.home_team_id))
 
-        team_records = utils.get_win_loss_matrix(past_games)
+        team_records = util.get_win_loss_matrix(past_games)
 
         max_len = 0
         num_games = 0
@@ -265,37 +273,39 @@ class BasketballApp(object):
                                 if team_records[i]['losses'][j] == team:
                                     del team_records[i]['losses'][j]
 
-        print
+        print('')
 
-        this_order = utils.order(team_records, True)
+        this_order = util.order(team_records, True)
 
-        print
-        print "Current Conference Standings:"
+        print('')
+        print('Current Conference Standings:')
 
         num = 1
 
         for team in this_order:
-            print repr(num).rjust(2), \
-                self.session.query(Team).get(team).name.\
-                    ljust(max_len+1), \
-                utils.record(team_records, team)
+            print('{} {} {}'.format(
+                repr(num).rjust(2),
+                self.session.query(Team).get(team).name.ljust(max_len+1),
+                util.record(team_records, team),
+            ))
             num += 1
 
-        print
-        print
+        print('')
+        print('')
 
         # print "There are", len(games_in_progress), "games in progress."
         # for game in games_in_progress:
         #     print game
 
-        print
-        print "There are", len(future_games), "games left."
+        print('')
+        print('There are {} games left.'.format(len(future_games)))
 
         if 0 < len(future_games) <= 21:
             for game in future_games:
-                print self.session.query(Team).get(game[0]).name, "@", self.session.query(Team).get(game[1]).name
+                print('{} @ {}'.format(self.get_team_by_id(game[0]).name,
+                                       self.get_team_by_id(game[1]).name))
 
-            possible_standings = utils.get_future_statistics(past_games, future_games)
+            possible_standings = util.get_future_statistics(past_games, future_games)
 
             possible_percents = {}
 
@@ -304,21 +314,25 @@ class BasketballApp(object):
             for team in possible_standings.keys():
                 possible_percents[team] = []
                 for num_games in possible_standings[team]:
-                    possible_percents[team].append(float(num_games)/num_possibilities*100)
+                    possible_percents[team].append(float(num_games) / num_possibilities * 100)
 
-            print
-            print "Team:".ljust(max_len + 1),
+            print('')
+            print('Team:'.ljust(max_len + 1), end=' ')
             for i in range(1, len(possible_percents.keys())+1):
-                print repr(i).rjust(4)+" ",
-            print
+                print(repr(i).rjust(4) + ' ', end=' ')
+            print('')
 
-            for team in this_order:
-                print self.session.query(Team).get(team).name.ljust(max_len + 1),
-                for percent in possible_percents[team]:
+            for i, team in enumerate(this_order):
+                print(self.get_team_by_id(team).name.ljust(max_len + 1), end=' ')
+                for j, percent in enumerate(possible_percents[team]):
+                    if i == j:
+                        sys.stdout.write('\033[92m')
                     if percent == 0.0:
-                        print "    -",
+                        print('    -', end=' ')
                     else:
-                        print ("%.1f" % percent).rjust(5),
-                print
+                        print(('%.1f' % percent).rjust(5), end=' ')
+                    if i == j:
+                        sys.stdout.write('\033[0m')
+                print('')
 
-            print
+            print('')

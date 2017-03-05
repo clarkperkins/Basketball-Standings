@@ -1,6 +1,6 @@
 
 from .db import Base, Session
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean
 
 
 class Conference(Base):
@@ -29,7 +29,7 @@ class Game(Base):
     status = Column(String)
     home_score = Column(Integer)
     away_score = Column(Integer)
-    headline_url = Column(String)
+    conference_game = Column(Boolean)
 
     @property
     def away_team(self):

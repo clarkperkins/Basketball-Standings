@@ -5,19 +5,8 @@ import os
 import re
 
 from setuptools import setup, find_packages
-from pip.req import parse_requirements
-from pip.download import PipSession
 
 here = os.path.abspath(os.path.dirname(__file__))
-
-
-def load_pip_requirements(fp):
-    reqs, deps = [], []
-    for r in parse_requirements(fp, session=PipSession()):
-        if r.url is not None:
-            deps.append(str(r.url))
-        reqs.append(str(r.req))
-    return reqs, deps
 
 
 # Read the version number from a source file.
@@ -31,14 +20,12 @@ def find_version(*file_paths):
 
     # The version line must have the form
     # __version__ = 'ver'
-    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
+    version_match = re.search(r'^__version__ = [\'\"]([^\'\"]*)[\'\"]',
                               version_file, re.M)
     if version_match:
         return version_match.group(1)
-    raise RuntimeError("Unable to find version string.")
+    raise RuntimeError('Unable to find version string.')
 
-
-reqs, deps = load_pip_requirements('requirements.txt')
 
 setup(
     name='basketball-standings',
@@ -57,11 +44,15 @@ setup(
     packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
 
 
-    dependency_links=deps,
+    dependency_links=[],
 
     # List run-time dependencies here.  These will be installed by pip when your
     # project is installed.
-    install_requires=reqs,
+    install_requires=[
+        'SQLAlchemy==0.9.8',
+        'beautifulsoup4==4.3.2',
+        'tabulate==0.7.4',
+    ],
 
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow

@@ -1,3 +1,5 @@
+
+import json
 from datetime import date
 from urllib2 import urlopen
 
@@ -12,7 +14,16 @@ class MissingBaseError(Exception):
     pass
 
 
-class KimonoParser(object):
+class Parser(object):
+
+    def __init__(self):
+        super(Parser, self).__init__()
+
+    def parse(self):
+        raise NotImplementedError()
+
+
+class KimonoParser(Parser):
     """
 
     """
@@ -36,7 +47,6 @@ class KimonoParser(object):
         """
         rows = []
         types = {}
-        saved = None
 
         if not self.base:
             raise MissingBaseError()
@@ -141,7 +151,7 @@ class ConferencesParser(KimonoParser):
 
 class StandingsParser(KimonoParser):
     url = 'http://espn.go.com/{0}-college-basketball/conferences/standings/_/id/{1}'
-    base = 'div:nth-of-type(28) > div > table > tr[class*=row]'
+    base = 'div.span-4 > div.mod-container > div.mod-content > table > tr[class*=row]'
     fields = (
         ('team',            'td:nth-of-type(1) > a:nth-of-type(1)'),
         ('conf_record',     'td:nth-of-type(2)'),
@@ -158,6 +168,7 @@ class StandingsParser(KimonoParser):
     )
 
     def post_process(self, data):
+        ret = []
         for team in data:
             conf_split = team['conf_record'].split('-')
             over_split = team['overall_record'].split('-')
@@ -170,48 +181,62 @@ class StandingsParser(KimonoParser):
             id_split = team['team']['href'].split('/')
             team['teamId'] = int(id_split[-2])
 
-            team['conf_pct'] = float(team['conf_wins']) / (team['conf_wins'] + team['conf_losses'])
-        return data
+            total = team['conf_wins'] + team['conf_losses']
+
+            team['conf_pct'] = float(team['conf_wins']) / total if total else 0
+
+            ret.append(team)
+
+        return ret
 
 
-class GamesParser(KimonoParser):
-    url = 'http://scores.espn.go.com/ncb/scoreboard?confId=50&date={0}'
-    base = 'div.gameDay-Container div.mod-content'
-    fields = (
-        ('away_team',   'div.team.visitor > div.team-capsule > p.team-name > span > a'),
-        ('home_team',   'div.team.home > div.team-capsule > p.team-name > span > a'),
-        ('status',      'div.game-status > p'),
-        ('away_record', 'div.team.visitor > div.team-capsule > p.record'),
-        ('home_record', 'div.team.home > div.team-capsule > p.record'),
-        ('away_score',  'div.team.visitor > ul.score > li.final'),
-        ('home_score',  'div.team.home > ul.score > li.final'),
-        ('away_logo',   'div.team.visitor > div.logo-small > img'),
-        ('home_logo',   'div.team.home > div.logo-small > img'),
-        ('headline',    'div.recap-headline > a'),
-    )
+class GamesParser(Parser):
+    url = 'http://scores.espn.go.com/{0}-college-basketball/scoreboard/_/group/50/date/{1}'
 
-    def __init__(self, game_date=date.today().strftime("%Y%m%d")):
+    def __init__(self, mens_womens, game_date=date.today().strftime("%Y%m%d")):
+        super(GamesParser, self).__init__()
         # Make date param optional
-        super(GamesParser, self).__init__(game_date)
+        self.soup = BeautifulSoup(urlopen(self.url.format(mens_womens, game_date)).read())
 
-    def post_process(self, data):
-        for game in data:
-            game['date'] = self.args[0]
+    def parse(self):
+        raw_scoreboard_data = None
 
-            try:
-                id_split = game['away_team']['href'].split('/')
-                game['away_team']['teamId'] = int(id_split[-2])
-            except IndexError:
-                game['away_team']['teamId'] = 0
+        for script in self.soup.select('script'):
+            if 'scoreboardData' in script.text:
+                raw_scoreboard_data = script.text
+                break
 
-            try:
-                id_split = game['home_team']['href'].split('/')
-                game['home_team']['teamId'] = int(id_split[-2])
-            except IndexError:
-                game['home_team']['teamId'] = 0
+        if raw_scoreboard_data is None:
+            raise RuntimeError('Could not find scoreboardData')
 
-            # if 'headline' not in game:
-            #     import json
-            #     print json.dumps(game, indent=3)
+        open_brace = raw_scoreboard_data.find('{')
+        close_brace = raw_scoreboard_data.find('};', open_brace)
 
-        return data
+        scoreboard_data = json.loads(raw_scoreboard_data[open_brace:close_brace+1])
+
+        ret = []
+
+        for event in scoreboard_data['events']:
+            for competition in event['competitions']:
+                game = {
+                    'date': competition['date'],
+                    'status': competition['status']['type']['detail'],
+                    'attendance': competition['attendance'],
+                    'conference_game': competition['conferenceCompetition'],
+                    'neutral': competition['neutralSite'],
+                }
+                for competitor in competition['competitors']:
+                    home_away = competitor['homeAway']
+                    game['{0}_team'.format(home_away)] = competitor['team']
+                    score = int(competitor['score']) if competitor['score'] else 0
+                    game['{0}_score'.format(home_away)] = score
+                    if 'records' in competitor:
+                        for record in competitor['records']:
+                            if record['type'] == 'total':
+                                game['{0}_record'.format(home_away)] = record['summary']
+                    else:
+                        game['{0}_record'.format(home_away)] = '0-0'
+
+                ret.append(game)
+
+        return ret

@@ -8,7 +8,7 @@ Session = sessionmaker()
 
 
 class Base(object):
-     # Always add an ID
+    # Always add an ID
     id = Column(Integer, primary_key=True)
 
     @declared_attr
